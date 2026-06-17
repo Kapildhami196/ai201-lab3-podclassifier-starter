@@ -139,7 +139,49 @@ def classify_episode(description: str, labeled_examples: list[dict]) -> dict:
 
     Before writing code, complete specs/classifier-spec.md.
     """
-    return {
-        "label": None,
-        "reasoning": "Classifier not yet implemented. Complete Milestone 2.",
-    }
+    try:
+        prompt = build_few_shot_prompt(labeled_examples, description)
+
+        response = _client.chat.completions.create(
+            model=LLM_MODEL,
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt,
+                }
+            ],
+            max_tokens=250,
+        )
+
+        response_text = response.choices[0].message.content
+        if not response_text:
+            return {
+                "label": "unknown",
+                "reasoning": "The model returned an empty response.",
+            }
+
+        raw_text = response_text.strip()
+        label = "unknown"
+        reasoning = raw_text
+
+        for line in raw_text.splitlines():
+            stripped_line = line.strip()
+            lowered_line = stripped_line.lower()
+
+            if lowered_line.startswith("label:"):
+                parsed_label = stripped_line.split(":", 1)[1].strip().lower()
+                label = parsed_label if parsed_label in VALID_LABELS else "unknown"
+            elif lowered_line.startswith("reasoning:"):
+                parsed_reasoning = stripped_line.split(":", 1)[1].strip()
+                if parsed_reasoning:
+                    reasoning = parsed_reasoning
+
+        return {
+            "label": label,
+            "reasoning": reasoning,
+        }
+    except Exception as exc:
+        return {
+            "label": "unknown",
+            "reasoning": f"Classification failed: {exc}",
+        }
