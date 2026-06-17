@@ -58,7 +58,15 @@ def compute_accuracy(predictions: list[str], ground_truth: list[str]) -> float:
 
     Before writing code, complete specs/evaluation-spec.md.
     """
-    return 0.0
+    if not ground_truth:
+        return 0.0
+
+    correct = sum(
+        prediction == truth
+        for prediction, truth in zip(predictions, ground_truth)
+    )
+
+    return correct / len(ground_truth)
 
 
 def compute_per_class_accuracy(
