@@ -55,7 +55,70 @@ def build_few_shot_prompt(labeled_examples: list[dict], description: str) -> str
 
     Before writing code, complete specs/classifier-spec.md.
     """
-    return ""
+    instruction = """You are classifying podcast episodes by their format.
+Classify the episode into exactly one of these four labels:
+
+- interview: a conversation between a host and one or more guests
+- solo: a single host speaking from memory, experience, or opinion, with no guests or assembled external sources
+- panel: multiple speakers with roughly equal standing who discuss or debate a topic together
+- narrative: a story assembled from external sources such as interviews, archival audio, documents, or reporting
+
+Use the episode structure, not its topic, tone, or marketing language.
+
+Return exactly two lines:
+Label: <interview, solo, panel, or narrative>
+Reasoning: <one brief explanation>
+"""
+
+    example_blocks = []
+
+    for example in labeled_examples:
+        example_block = "\n".join(
+            [
+                f"Title: {example.get('title', '')}",
+                f"Description: {example.get('description', '')}",
+                f"Label: {example.get('label', '')}",
+            ]
+        )
+        example_blocks.append(example_block)
+
+    examples_text = "\n\n---\n\n".join(example_blocks)
+    clean_description = description.strip()
+
+    if not clean_description:
+        clean_description = (
+            "No description was provided. Make the best classification possible "
+            "without inventing details."
+        )
+
+    prompt_parts = [instruction.strip()]
+
+    if examples_text:
+        prompt_parts.extend(
+            [
+                "Labeled examples:",
+                examples_text,
+            ]
+        )
+    else:
+        prompt_parts.append(
+            "No labeled examples are available. "
+            "Classify using only the taxonomy above."
+        )
+
+    prompt_parts.extend(
+        [
+            "Episode to classify:",
+            f"Description: {clean_description}",
+            "Label: ?",
+            (
+                "Return exactly two lines using the required "
+                "Label and Reasoning format."
+            ),
+        ]
+    )
+
+    return "\n\n".join(prompt_parts)
 
 
 def classify_episode(description: str, labeled_examples: list[dict]) -> dict:
